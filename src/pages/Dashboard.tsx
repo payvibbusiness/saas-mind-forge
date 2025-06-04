@@ -27,9 +27,12 @@ const Dashboard = () => {
   const validatedIdeas = ideas.filter((idea) => idea.validated);
   const pendingIdeas = ideas.filter((idea) => !idea.validated);
 
-  // Placeholder values since user doesn't have these properties yet
-  const userSubscription: SubscriptionPlan = "free";
-  const userAiProvider: AiProvider = "openai";
+  // These could come from user preferences/database in the future
+  const getUserSubscription = (): SubscriptionPlan => "free";
+  const getUserAiProvider = (): AiProvider => "openai";
+  
+  const userSubscription = getUserSubscription();
+  const userAiProvider = getUserAiProvider();
 
   const chartData = [
     { name: "Market Fit", value: 76 },
@@ -150,9 +153,7 @@ const Dashboard = () => {
         </CardContent>
       </Card>
 
-      {/* Main content grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Recent Ideas */}
         <Card className="md:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
@@ -228,7 +229,6 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Analytics Overview */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
