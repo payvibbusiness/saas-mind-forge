@@ -25,6 +25,10 @@ const Dashboard = () => {
   const validatedIdeas = ideas.filter((idea) => idea.validated);
   const pendingIdeas = ideas.filter((idea) => !idea.validated);
 
+  // Placeholder values since user doesn't have these properties yet
+  const userSubscription = "free";
+  const userAiProvider = "openai";
+
   const chartData = [
     { name: "Market Fit", value: 76 },
     { name: "Competition", value: 54 },
@@ -82,17 +86,17 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold capitalize">
-              {user?.subscription || "Free"}
+              {userSubscription}
             </div>
             <div className="flex items-center mt-1">
               <p className="text-xs text-muted-foreground">
-                {user?.subscription === "pro"
+                {userSubscription === "pro"
                   ? "Unlimited validations"
-                  : user?.subscription === "basic"
+                  : userSubscription === "basic"
                   ? "7 validations left this month"
                   : "3 validations left this month"}
               </p>
-              {user?.subscription !== "pro" && (
+              {userSubscription !== "pro" && (
                 <Link
                   to="/settings"
                   className="text-xs text-accent hover:underline ml-2"
@@ -113,7 +117,7 @@ const Dashboard = () => {
             AI Provider
           </CardTitle>
           <CardDescription>
-            You're currently using {user?.ai_provider || "OpenAI"} as your AI provider
+            You're currently using {userAiProvider === "openai" ? "OpenAI" : userAiProvider === "gemini" ? "Gemini" : "Grok"} as your AI provider
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -122,16 +126,16 @@ const Dashboard = () => {
               <div className="h-12 w-12 rounded-lg bg-background flex items-center justify-center">
                 <img 
                   src={`/placeholder.svg`} 
-                  alt={user?.ai_provider || "OpenAI"} 
+                  alt={userAiProvider === "openai" ? "OpenAI" : userAiProvider === "gemini" ? "Gemini" : "Grok"} 
                   className="h-8 w-8"
                 />
               </div>
               <div>
-                <h3 className="font-medium">{user?.ai_provider || "OpenAI"}</h3>
+                <h3 className="font-medium">{userAiProvider === "openai" ? "OpenAI" : userAiProvider === "gemini" ? "Gemini" : "Grok"}</h3>
                 <p className="text-sm text-muted-foreground">
-                  {user?.ai_provider === "gemini" 
+                  {userAiProvider === "gemini" 
                     ? "Google's Gemini AI" 
-                    : user?.ai_provider === "grok" 
+                    : userAiProvider === "grok" 
                     ? "xAI's Grok" 
                     : "OpenAI's GPT models"}
                 </p>
