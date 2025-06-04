@@ -1,17 +1,11 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-
-type User = {
-  id: string;
-  email: string;
-  name: string | null;
-  avatar_url: string | null;
-  subscription: string | null;
-  ai_provider: string;
-};
+import { User, Session } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
 
 type AuthContextType = {
   user: User | null;
+  session: Session | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
@@ -24,37 +18,41 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // In a real implementation, this would check for an active session
-    // For now, we'll use localStorage to simulate persistence
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    setIsLoading(false);
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        console.log('Auth state change:', event, session);
+        setSession(session);
+        setUser(session?.user ?? null);
+        setIsLoading(false);
+      }
+    );
+
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setIsLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const login = async (email: string, password: string) => {
-    // Mock login - would be replaced with Supabase auth
     setIsLoading(true);
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock user object
-      const mockUser: User = {
-        id: "user-123",
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        name: email.split('@')[0],
-        avatar_url: null,
-        subscription: "free",
-        ai_provider: "openai",
-      };
+        password,
+      });
       
-      setUser(mockUser);
-      localStorage.setItem("user", JSON.stringify(mockUser));
+      if (error) throw error;
+      
+      console.log('Login successful:', data);
     } catch (error) {
       console.error("Login error:", error);
       throw error;
@@ -64,22 +62,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signUp = async (email: string, password: string) => {
-    // Mock signup - would be replaced with Supabase auth
     setIsLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const redirectUrl = `${window.location.origin}/`;
       
-      const mockUser: User = {
-        id: "user-" + Math.floor(Math.random() * 1000),
+      const { data, error } = await supabase.auth.signUp({
         email,
-        name: email.split('@')[0],
-        avatar_url: null,
-        subscription: "free",
-        ai_provider: "openai",
-      };
+        password,
+        options: {
+          emailRedirectTo: redirectUrl
+        }
+      });
       
-      setUser(mockUser);
-      localStorage.setItem("user", JSON.stringify(mockUser));
+      if (error) throw error;
+      
+      console.log('Signup successful:', data);
     } catch (error) {
       console.error("Signup error:", error);
       throw error;
@@ -89,12 +86,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const logout = async () => {
-    // Mock logout
     setIsLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setUser(null);
-      localStorage.removeItem("user");
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      console.log('Logout successful');
     } catch (error) {
       console.error("Logout error:", error);
       throw error;
@@ -104,10 +101,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const resetPassword = async (email: string) => {
-    // Mock password reset - would be replaced with Supabase auth
     setIsLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const redirectUrl = `${window.location.origin}/`;
+      
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: redirectUrl
+      });
+      
+      if (error) throw error;
+      
       console.log(`Password reset link sent to ${email}`);
     } catch (error) {
       console.error("Password reset error:", error);
@@ -121,6 +124,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     <AuthContext.Provider
       value={{
         user,
+        session,
         isLoading,
         isAuthenticated: !!user,
         login,
