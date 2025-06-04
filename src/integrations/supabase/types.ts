@@ -9,7 +9,69 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      ideas: {
+        Row: {
+          ai_provider: string | null
+          competitor_analysis: string | null
+          created_at: string
+          description: string
+          effort_estimation_months: number | null
+          effort_estimation_team_size: number | null
+          feature_suggestions: string[] | null
+          id: string
+          market_demand: number | null
+          mrr_projection_max: number | null
+          mrr_projection_min: number | null
+          tags: string[] | null
+          tech_stack_suggestion: string[] | null
+          title: string
+          updated_at: string
+          user_id: string
+          validated: boolean | null
+          validated_at: string | null
+        }
+        Insert: {
+          ai_provider?: string | null
+          competitor_analysis?: string | null
+          created_at?: string
+          description: string
+          effort_estimation_months?: number | null
+          effort_estimation_team_size?: number | null
+          feature_suggestions?: string[] | null
+          id?: string
+          market_demand?: number | null
+          mrr_projection_max?: number | null
+          mrr_projection_min?: number | null
+          tags?: string[] | null
+          tech_stack_suggestion?: string[] | null
+          title: string
+          updated_at?: string
+          user_id: string
+          validated?: boolean | null
+          validated_at?: string | null
+        }
+        Update: {
+          ai_provider?: string | null
+          competitor_analysis?: string | null
+          created_at?: string
+          description?: string
+          effort_estimation_months?: number | null
+          effort_estimation_team_size?: number | null
+          feature_suggestions?: string[] | null
+          id?: string
+          market_demand?: number | null
+          mrr_projection_max?: number | null
+          mrr_projection_min?: number | null
+          tags?: string[] | null
+          tech_stack_suggestion?: string[] | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+          validated?: boolean | null
+          validated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

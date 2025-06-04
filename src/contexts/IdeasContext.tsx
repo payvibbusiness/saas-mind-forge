@@ -1,5 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 type Idea = {
   id: string;
@@ -30,7 +32,7 @@ type IdeasContextType = {
   addIdea: (idea: Omit<Idea, "id" | "createdAt" | "updatedAt" | "validated">) => Promise<void>;
   updateIdea: (id: string, idea: Partial<Idea>) => Promise<void>;
   deleteIdea: (id: string) => Promise<void>;
-  validateIdea: (id: string, aiProvider: string) => Promise<void>;
+  validateIdea: (id: string) => Promise<void>;
 };
 
 const IdeasContext = createContext<IdeasContextType | undefined>(undefined);
@@ -39,83 +41,86 @@ export const IdeasProvider = ({ children }: { children: React.ReactNode }) => {
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
 
   useEffect(() => {
-    // In a real implementation, this would fetch ideas from Supabase
-    const fetchIdeas = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        // For demo purposes, load from localStorage if available
-        const storedIdeas = localStorage.getItem("ideas");
-        if (storedIdeas) {
-          setIdeas(JSON.parse(storedIdeas));
-        } else {
-          // Default sample ideas
-          const sampleIdeas: Idea[] = [
-            {
-              id: "idea-1",
-              title: "Developer Analytics Dashboard",
-              description: "Real-time analytics for developers to track their productivity, code quality, and project status.",
-              tags: ["analytics", "developer", "productivity"],
-              createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-              updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-              validated: true,
-              validation: {
-                marketDemand: 8.5,
-                competitorAnalysis: "Moderate competition with 3-5 established players. Key differentiators needed in developer experience and integration capabilities.",
-                techStackSuggestion: ["Next.js", "GraphQL", "Prisma", "PostgreSQL"],
-                featureSuggestions: ["Code quality metrics", "GitHub integration", "Team collaboration", "Performance tracking"],
-                mrrProjection: { min: 15000, max: 50000 },
-                effortEstimation: { months: 4, teamSize: 3 },
-                aiProvider: "openai",
-                validatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-              }
-            },
-            {
-              id: "idea-2",
-              title: "AI-Powered Content Calendar",
-              description: "Calendar application that uses AI to suggest optimal posting times and content ideas for social media managers.",
-              tags: ["ai", "content", "social-media"],
-              createdAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
-              updatedAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
-              validated: false
-            }
-          ];
-          setIdeas(sampleIdeas);
-          localStorage.setItem("ideas", JSON.stringify(sampleIdeas));
-        }
-      } catch (err) {
-        setError("Failed to load ideas");
-        console.error("Error loading ideas:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    if (user) {
+      fetchIdeas();
+    }
+  }, [user]);
 
-    fetchIdeas();
-  }, []);
-
-  const addIdea = async (idea: Omit<Idea, "id" | "createdAt" | "updatedAt" | "validated">) => {
+  const fetchIdeas = async () => {
+    if (!user) return;
+    
     setIsLoading(true);
     setError(null);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const { data, error } = await supabase
+        .from('ideas')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const formattedIdeas: Idea[] = data.map(idea => ({
+        id: idea.id,
+        title: idea.title,
+        description: idea.description,
+        tags: idea.tags || [],
+        createdAt: idea.created_at,
+        updatedAt: idea.updated_at,
+        validated: idea.validated || false,
+        validation: idea.validated ? {
+          marketDemand: idea.market_demand || 0,
+          competitorAnalysis: idea.competitor_analysis || '',
+          techStackSuggestion: idea.tech_stack_suggestion || [],
+          featureSuggestions: idea.feature_suggestions || [],
+          mrrProjection: { 
+            min: idea.mrr_projection_min || 0, 
+            max: idea.mrr_projection_max || 0 
+          },
+          effortEstimation: { 
+            months: idea.effort_estimation_months || 0, 
+            teamSize: idea.effort_estimation_team_size || 0 
+          },
+          aiProvider: idea.ai_provider || 'gemini',
+          validatedAt: idea.validated_at || '',
+        } : undefined
+      }));
+
+      setIdeas(formattedIdeas);
+    } catch (err) {
+      setError("Failed to load ideas");
+      console.error("Error loading ideas:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const addIdea = async (idea: Omit<Idea, "id" | "createdAt" | "updatedAt" | "validated">) => {
+    if (!user) throw new Error("User not authenticated");
+    
+    setIsLoading(true);
+    setError(null);
+    try {
+      const { data, error } = await supabase
+        .from('ideas')
+        .insert([{
+          user_id: user.id,
+          title: idea.title,
+          description: idea.description,
+          tags: idea.tags,
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Automatically validate the idea using Gemini
+      await validateIdea(data.id);
       
-      const newIdea: Idea = {
-        ...idea,
-        id: `idea-${Date.now()}`,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        validated: false
-      };
-      
-      setIdeas(prevIdeas => {
-        const updatedIdeas = [...prevIdeas, newIdea];
-        localStorage.setItem("ideas", JSON.stringify(updatedIdeas));
-        return updatedIdeas;
-      });
+      await fetchIdeas(); // Refresh the list
     } catch (err) {
       setError("Failed to add idea");
       console.error("Error adding idea:", err);
@@ -126,25 +131,25 @@ export const IdeasProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const updateIdea = async (id: string, ideaUpdates: Partial<Idea>) => {
+    if (!user) throw new Error("User not authenticated");
+    
     setIsLoading(true);
     setError(null);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const { error } = await supabase
+        .from('ideas')
+        .update({
+          title: ideaUpdates.title,
+          description: ideaUpdates.description,
+          tags: ideaUpdates.tags,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
       
-      setIdeas(prevIdeas => {
-        const updatedIdeas = prevIdeas.map(idea => 
-          idea.id === id 
-            ? { 
-                ...idea, 
-                ...ideaUpdates, 
-                updatedAt: new Date().toISOString() 
-              } 
-            : idea
-        );
-        localStorage.setItem("ideas", JSON.stringify(updatedIdeas));
-        return updatedIdeas;
-      });
+      await fetchIdeas(); // Refresh the list
     } catch (err) {
       setError("Failed to update idea");
       console.error("Error updating idea:", err);
@@ -155,17 +160,20 @@ export const IdeasProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const deleteIdea = async (id: string) => {
+    if (!user) throw new Error("User not authenticated");
+    
     setIsLoading(true);
     setError(null);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const { error } = await supabase
+        .from('ideas')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
       
-      setIdeas(prevIdeas => {
-        const updatedIdeas = prevIdeas.filter(idea => idea.id !== id);
-        localStorage.setItem("ideas", JSON.stringify(updatedIdeas));
-        return updatedIdeas;
-      });
+      await fetchIdeas(); // Refresh the list
     } catch (err) {
       setError("Failed to delete idea");
       console.error("Error deleting idea:", err);
@@ -175,62 +183,56 @@ export const IdeasProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const validateIdea = async (id: string, aiProvider: string) => {
+  const validateIdea = async (id: string) => {
+    if (!user) throw new Error("User not authenticated");
+    
     setIsLoading(true);
     setError(null);
     try {
-      // Simulate API call to AI service
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Simulate AI validation response
-      const mockValidation: IdeaValidation = {
-        marketDemand: Math.floor(Math.random() * 5) + 5, // 5-10 score
-        competitorAnalysis: [
-          "Moderate competition with several established players.",
-          "Low competition with few established solutions.",
-          "High competition, but market is rapidly growing.",
-          "Niche market with specialized competitors.",
-        ][Math.floor(Math.random() * 4)],
-        techStackSuggestion: [
-          ["Next.js", "Supabase", "Tailwind CSS", "TypeScript"],
-          ["React", "Firebase", "Material UI", "JavaScript"],
-          ["Vue.js", "MongoDB", "Express.js", "Node.js"],
-          ["Django", "PostgreSQL", "React", "Python"],
-        ][Math.floor(Math.random() * 4)],
-        featureSuggestions: [
-          "User authentication",
-          "Subscription management",
-          "Analytics dashboard",
-          "Mobile responsiveness",
-          "API integration",
-          "Dark mode",
-        ].sort(() => 0.5 - Math.random()).slice(0, 4),
-        mrrProjection: { 
-          min: Math.floor(Math.random() * 20000) + 5000,  
-          max: Math.floor(Math.random() * 50000) + 30000 
-        },
-        effortEstimation: { 
-          months: Math.floor(Math.random() * 6) + 2,
-          teamSize: Math.floor(Math.random() * 3) + 1
-        },
-        aiProvider,
-        validatedAt: new Date().toISOString(),
-      };
-      
-      setIdeas(prevIdeas => {
-        const updatedIdeas = prevIdeas.map(idea => 
-          idea.id === id 
-            ? { 
-                ...idea, 
-                validated: true,
-                validation: mockValidation,
-                updatedAt: new Date().toISOString() 
-              } 
-            : idea
-        );
-        localStorage.setItem("ideas", JSON.stringify(updatedIdeas));
-        return updatedIdeas;
+      // Get the idea details first
+      const { data: ideaData, error: fetchError } = await supabase
+        .from('ideas')
+        .select('*')
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Call our edge function to analyze the idea
+      const { data: analysis, error: analysisError } = await supabase.functions.invoke('analyze-idea', {
+        body: {
+          title: ideaData.title,
+          description: ideaData.description,
+          tags: ideaData.tags || []
+        }
       });
+
+      if (analysisError) throw analysisError;
+
+      // Update the idea with validation results
+      const { error: updateError } = await supabase
+        .from('ideas')
+        .update({
+          validated: true,
+          market_demand: analysis.marketDemand,
+          competitor_analysis: analysis.competitorAnalysis,
+          tech_stack_suggestion: analysis.techStackSuggestion,
+          feature_suggestions: analysis.featureSuggestions,
+          mrr_projection_min: analysis.mrrProjection.min,
+          mrr_projection_max: analysis.mrrProjection.max,
+          effort_estimation_months: analysis.effortEstimation.months,
+          effort_estimation_team_size: analysis.effortEstimation.teamSize,
+          ai_provider: 'gemini',
+          validated_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .eq('user_id', user.id);
+
+      if (updateError) throw updateError;
+      
+      await fetchIdeas(); // Refresh the list
     } catch (err) {
       setError("Failed to validate idea");
       console.error("Error validating idea:", err);

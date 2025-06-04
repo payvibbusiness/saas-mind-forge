@@ -20,6 +20,7 @@ import ChoosePlan from "./pages/ChoosePlan";
 // App pages
 import Dashboard from "./pages/Dashboard";
 import IdeasList from "./pages/IdeasList";
+import NewIdea from "./pages/NewIdea";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -44,6 +45,7 @@ const App = () => (
                 {/* Protected routes */}
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/ideas" element={<IdeasList />} />
+                <Route path="/ideas/new" element={<NewIdea />} />
                 
                 {/* Catch-all for 404 */}
                 <Route path="*" element={<NotFound />} />
