@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Link } from "react-router-dom";
 import AppLayout from "@/components/layout/AppLayout";
@@ -18,6 +17,9 @@ import {
   Tooltip,
 } from "recharts";
 
+type SubscriptionPlan = "free" | "basic" | "pro";
+type AiProvider = "openai" | "gemini" | "grok";
+
 const Dashboard = () => {
   const { ideas } = useIdeas();
   const { user } = useAuth();
@@ -26,8 +28,8 @@ const Dashboard = () => {
   const pendingIdeas = ideas.filter((idea) => !idea.validated);
 
   // Placeholder values since user doesn't have these properties yet
-  const userSubscription = "free";
-  const userAiProvider = "openai";
+  const userSubscription: SubscriptionPlan = "free";
+  const userAiProvider: AiProvider = "openai";
 
   const chartData = [
     { name: "Market Fit", value: 76 },
